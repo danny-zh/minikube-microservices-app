@@ -1,0 +1,79 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishlist-deployment
+  labels:
+    app: wishlist
+spec:
+  replicas: 3 #We always want more than 1 replica for HA
+  selector:
+    matchLabels:
+      app: wishlist
+  template:
+    metadata:
+      labels:
+        app: wishlist
+    spec:
+      volumes:
+        - name: config-volume # Configmap (Step 2: Declare as a volume)
+          configMap: # Provide the name of the ConfigMap containing the files you want
+            name: log-config
+        - name: secret-volume
+          secret:
+            secretName: mysql-connection-secret # Provide the name of the secret containing the secret you want
+      containers:
+      - name: wishlist #1st container
+        image: karthequian/wishlist:1.0 #Dockerhub image
+        ports:
+        - containerPort: 8080 #Exposes the port 8080 of the container
+        env:
+        - name: PORT #Environment variable key passed to container that is read by application
+          value: "8080" # Value of the env port.
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: log-config
+              key: log-level
+        - name: MYSQL_CONNECTION_STRING #Environment variable key passed to container that is read by application
+          valueFrom:
+            secretKeyRef:
+              name: mysql-connection-secret
+              key: connection-string
+        volumeMounts:
+        - name: config-volume
+          readOnly: true
+          mountPath: "/var/lib/wishlist/"
+        - name: secret-volume
+          readOnly: true
+          mountPath: "/var/lib/mysql-volume"
+        livenessProbe:
+          httpGet:
+            path: /status
+            port: 8080
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 1
+          failureThreshold: 4
+      - name: catalog #2nd container
+        image: karthequian/wishlist-catalog:1.0
+        ports:
+        - containerPort: 8081
+        env:
+        - name: PORT
+          value: "8081"
+        volumeMounts:
+        - name: config-volume
+          readOnly: true
+          mountPath: "/var/lib/wishlist/"
+      - name: auth #3rd container
+        image: karthequian/wishlist-auth:1.0
+        ports:
+        - containerPort: 8082
+        env:
+        - name: PORT
+          value: "8082"
+        volumeMounts:
+        - name: config-volume
+          readOnly: true
+          mountPath: "/var/lib/wishlist/"

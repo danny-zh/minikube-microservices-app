@@ -1,0 +1,23 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: wishlist-service
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: wishlist
+  ports:
+  - name: wishlist-port
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  - name: wishlist-auth-port
+    protocol: TCP
+    port: 8081
+    targetPort: 8081
+  - name: wishlist-catalog-port
+    protocol: TCP
+    port: 8082
+    targetPort: 8082
